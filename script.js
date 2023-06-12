@@ -33,11 +33,28 @@ let keyS;
 let keySpace;
 let spaceDown;
 let power;
+let levelList;
+let currentX = 100;
+let currentY = 1000;
+let currentVelX = 0;
+let currentVelY = 0;
+let inAir = false;
 class Level extends Phaser.Scene {
     constructor(key, name, num) {
         super(key);
         this.name = name;
         this.currentLevel = num;
+    }
+
+    preload(){
+        this.load.audio('music', 'assets/bgMusic.mp3');
+        this.load.audio('jump', 'assets/jump.wav');
+        this.load.audio('land', 'assets/land.wav');
+
+        this.load.image('player', 'assets/Player.png');
+        this.load.image('tiles', 'assets/tilesets/platformPack_tilesheet.png');
+         // Load the export Tiled JSON
+        this.loadMap();
     }
     
     create(){
@@ -53,7 +70,19 @@ class Level extends Phaser.Scene {
         keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
         keyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
         keyS = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+        //create player
+        this.player = this.physics.add.sprite(currentX, currentY, 'player');
+        this.player.setBounce(0.1);
         keySpace = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        this.player.setVelocityX(currentVelX);
+        this.player.setVelocityY(currentVelY);
+        this.music = this.sound.add('music', {
+            volume: 0.25,
+            loop: true
+        });
+        this.music.play();
+        this.jump = this.sound.add('jump');
+        this.land = this.sound.add('land');
         this.onStart();
     }
     update(){
@@ -69,7 +98,7 @@ class Level extends Phaser.Scene {
         else if (keyD.isDown && this.player.body.onFloor()) {  
             this.player.setVelocityX(100);
         } 
-        else if (keyA.isDown) {
+        else if (keyD.isDown) {
             this.player.setVelocityX(300);
         }
         else if(keyA.isUp && keyD.isUp){
@@ -91,11 +120,41 @@ class Level extends Phaser.Scene {
             power = 0;
             spaceDown = false;
             console.log("space up");
+            this.jump.play();
+            inAir = true;
         }
+        
+        if(this.player.body.onFloor() && inAir) {
+            this.land.play();
+            inAir = false;
+        }
+
+        if(this.player.y > 1280) {
+            this.scene.start(this.lastLevel);
+            this.player.y = 0;
+            this.player.setVelocityX(currentVelX);
+            this.player.setVelocityY(currentVelY);
+        }
+        if(this.player.y < 0) {
+            console.log("hit top" + this.nextLevel + this.player.y);
+            this.scene.start(this.nextLevel);
+            this.player.y = 1280;
+            this.player.setVelocityX(currentVelX);
+            this.player.setVelocityY(currentVelY);
+        }
+
+        currentX = this.player.x;
+        currentY = this.player.y;
+        currentVelX = this.player.body.velocity.x;
+        currentVelY = this.player.body.velocity.y;
     }
 
     onStart(){
         console.log("Level not implemented yet");
+    }
+
+    loadMap() {
+        console.log("Map not implemented yet");
     }
 
     goalHit() {
@@ -111,12 +170,9 @@ class Level1 extends Level {
         super('level1', "Level 1", 0);
     }
 
-    preload(){
-        // At last image must be loaded with its JSON
-        this.load.image('player', 'assets/Player.png');
-        this.load.image('tiles', 'assets/tilesets/platformPack_tilesheet.png');
-         // Load the export Tiled JSON
-         this.load.tilemapTiledJSON('map', 'assets/levels/level1.json');
+    loadMap() {
+        this.load.tilemapTiledJSON('map', 'assets/levels/level1.json');
+
     }
 
     onStart(){
@@ -124,17 +180,14 @@ class Level1 extends Level {
         //.setInteractive()
        // .on('pointerdown', () => this.scene.start('level2') );
 
+
         const map = this.make.tilemap({key: 'map'});                                //load map
         const tileset = map.addTilesetImage('core_gameplay_platformer', 'tiles');   //load tileset for map
         const platforms = map.createLayer('Platforms', tileset, 0, 0);        //create platforms layer
         platforms.setCollisionByExclusion(-1, true);                                //set collision for platforms layer
-
-
-        //create player
-        this.player = this.physics.add.sprite(100, 1000, 'player');
-        this.player.setBounce(0.1);
-        this.player.setCollideWorldBounds(true);
         this.physics.add.collider(this.player, platforms);
+        this.nextLevel = 'level2';
+        this.lastLevel = 'Menu';
 
 
        
@@ -148,18 +201,23 @@ class Level2 extends Level {
         super('level2', "Level 2", 1);
     }
 
-    preload(){
+    loadMap() {
+        this.load.tilemapTiledJSON('map2', 'assets/levels/level2.json');
 
     }
 
     onStart(){
-        const jumpButton = this.add.text(100, 100, 'Jump up to next level', {font: '64px Arial', fill: '#ffffff'})
-        .setInteractive()
-        .on('pointerdown', () => this.scene.start('level3') );
+        //const jumpButton = this.add.text(100, 100, 'Jump up to next level', {font: '64px Arial', fill: '#ffffff'})
+        //.setInteractive()
+       // .on('pointerdown', () => this.scene.start('level2') );
 
-        const fallButton = this.add.text(100, 200, 'Fall down to last level', {font: '64px Arial', fill: '#ffffff'})
-        .setInteractive()
-        .on('pointerdown', () => this.scene.start('level1') );
+       const map = this.make.tilemap({key: 'map2'});                                //load map
+       const tileset = map.addTilesetImage('core_gameplay_platformer', 'tiles');   //load tileset for map
+       const platforms = map.createLayer('Platforms', tileset, 0, 0);        //create platforms layer
+       platforms.setCollisionByExclusion(-1, true);                                //set collision for platforms layer
+       this.physics.add.collider(this.player, platforms);
+       this.nextLevel = 'EndCutscene';
+       this.lastLevel = 'level1';
 
 
     }
@@ -167,24 +225,6 @@ class Level2 extends Level {
 }
 
 
-class Level3 extends Level {
-    constructor() {
-        super('level3', "Level 3", 2)
-    }
-    preload(){
-
-    }
-    onStart(){
-        const jumpButton = this.add.text(100, 100, 'Jump up to end of game', {font: '64px Arial', fill: '#ffffff'})
-        .setInteractive()
-        .on('pointerdown', () => this.scene.start('EndCutscene') );
-
-        const fallButton = this.add.text(100, 200, 'Fall down to first level', {font: '64px Arial', fill: '#ffffff'})
-        .setInteractive()
-        .on('pointerdown', () => this.scene.start('level1') );
-
-    }
-}
 
 class EndCutscene extends Phaser.Scene {
     constructor() {
@@ -263,7 +303,7 @@ let config = {
         height: 1280
     },
     backgroundColor: 0x000000,
-    scene: [Menu, Level1, Level2, Level3, EndCutscene, Settings, Credits],
+    scene: [Menu, Level1, Level2, EndCutscene, Settings, Credits],
     physics: {
         default: 'arcade',
         arcade: {
