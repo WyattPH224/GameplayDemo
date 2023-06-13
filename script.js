@@ -35,10 +35,12 @@ let spaceDown;
 let power;
 let levelList;
 let currentX = 100;
-let currentY = 1000;
+let currentY = 800;
 let currentVelX = 0;
 let currentVelY = 0;
 let inAir = false;
+let isClicking = false;
+
 class Level extends Phaser.Scene {
     constructor(key, name, num) {
         super(key);
@@ -51,8 +53,8 @@ class Level extends Phaser.Scene {
         this.load.audio('jump', 'assets/jump.wav');
         this.load.audio('land', 'assets/land.wav');
 
-        this.load.image('player', 'assets/Player.png');
-        this.load.image('tiles', 'assets/tilesets/platformPack_tilesheet.png');
+        this.load.image('player', 'assets/queen1.png');
+        this.load.image('tiles', 'assets/tilesets/ActualChessTileset.png');
          // Load the export Tiled JSON
         this.loadMap();
     }
@@ -70,12 +72,17 @@ class Level extends Phaser.Scene {
         keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
         keyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
         keyS = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+        keySpace = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
         //create player
         this.player = this.physics.add.sprite(currentX, currentY, 'player');
+        this.player.body.allowGravity = true;
+        //this.player.anchor.set(0.5, 0.5);
+        this.player.setScale(0.03125); // 1/32th of original size
         this.player.setBounce(0.1);
-        keySpace = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        this.player.setMaxVelocity(800, 800);
         this.player.setVelocityX(currentVelX);
         this.player.setVelocityY(currentVelY);
+        
         this.music = this.sound.add('music', {
             volume: 0.25,
             loop: true
@@ -83,6 +90,7 @@ class Level extends Phaser.Scene {
         this.music.play();
         this.jump = this.sound.add('jump');
         this.land = this.sound.add('land');
+
         this.onStart();
     }
     update(){
@@ -101,7 +109,7 @@ class Level extends Phaser.Scene {
         else if (keyD.isDown) {
             this.player.setVelocityX(300);
         }
-        else if(keyA.isUp && keyD.isUp){
+        else if(keyA.isUp && keyD.isUp && this.player.body.onFloor()){
             this.player.setVelocityX(0);
         }
 
@@ -138,15 +146,42 @@ class Level extends Phaser.Scene {
         if(this.player.y < 0) {
             console.log("hit top" + this.nextLevel + this.player.y);
             this.scene.start(this.nextLevel);
-            this.player.y = 1280;
+            this.player.y = 1024 - 64;
             this.player.setVelocityX(currentVelX);
             this.player.setVelocityY(currentVelY);
+        }
+
+        if(this.input.activePointer.isDown) {
+            this.player.setVelocityX(0);
+            isClicking = true;
+            if(power < 100) {
+                power+=2;
+                console.log(power);
+            }
+        }
+
+        //leap
+        //if player clicked when player.x is less than mouse.x, then player jumps right, else player jumps left
+        if(!this.input.activePointer.isDown && isClicking && this.player.body.onFloor()) {
+            isClicking = false;
+ 
+            if(this.player.x < this.input.mousePointer.x) {
+                this.player.setVelocityX(100 + (power * 3));  //need this to also change based on power, so that the player jumps short when the mouse is clicked quickly
+                this.player.setVelocityY(-400 - (power * 3));
+            }
+            else {
+                this.player.setVelocityX(-100 - (power * 3));
+                this.player.setVelocityY(-400 - (power * 3));
+            }
+            power = 0;
         }
 
         currentX = this.player.x;
         currentY = this.player.y;
         currentVelX = this.player.body.velocity.x;
         currentVelY = this.player.body.velocity.y;
+        //console.log(game.input.mousePointer.x + " " + game.input.mousePointer.y);
+        //need to compare mouse position to player position for mobile game, so that when the map is clicked the player jumps twards that position
     }
 
     onStart(){
@@ -171,7 +206,8 @@ class Level1 extends Level {
     }
 
     loadMap() {
-        this.load.tilemapTiledJSON('map', 'assets/levels/level1.json');
+        this.load.tilemapTiledJSON('map', 'assets/levels/lvl1.json');
+        //this.load.image('bg', 'assets/levels/bg1.png')
 
     }
 
@@ -182,8 +218,8 @@ class Level1 extends Level {
 
 
         const map = this.make.tilemap({key: 'map'});                                //load map
-        const tileset = map.addTilesetImage('core_gameplay_platformer', 'tiles');   //load tileset for map
-        const platforms = map.createLayer('Platforms', tileset, 0, 0);        //create platforms layer
+        const tileset = map.addTilesetImage('chessTiles', 'tiles');   //load tileset for map
+        const platforms = map.createLayer('platforms', tileset, 0, 0);        //create platforms layer
         platforms.setCollisionByExclusion(-1, true);                                //set collision for platforms layer
         this.physics.add.collider(this.player, platforms);
         this.nextLevel = 'level2';
@@ -202,7 +238,7 @@ class Level2 extends Level {
     }
 
     loadMap() {
-        this.load.tilemapTiledJSON('map2', 'assets/levels/level2.json');
+        this.load.tilemapTiledJSON('map2', 'assets/levels/lvl2.json');
 
     }
 
@@ -212,11 +248,11 @@ class Level2 extends Level {
        // .on('pointerdown', () => this.scene.start('level2') );
 
        const map = this.make.tilemap({key: 'map2'});                                //load map
-       const tileset = map.addTilesetImage('core_gameplay_platformer', 'tiles');   //load tileset for map
-       const platforms = map.createLayer('Platforms', tileset, 0, 0);        //create platforms layer
+       const tileset = map.addTilesetImage('chessTiles', 'tiles');   //load tileset for map
+       const platforms = map.createLayer('platforms', tileset, 0, 0);        //create platforms layer
        platforms.setCollisionByExclusion(-1, true);                                //set collision for platforms layer
        this.physics.add.collider(this.player, platforms);
-       this.nextLevel = 'EndCutscene';
+       this.nextLevel = 'level3';
        this.lastLevel = 'level1';
 
 
@@ -224,7 +260,68 @@ class Level2 extends Level {
 
 }
 
+class Level3 extends Level {
+    constructor(){
+        super('level3', "Level 3", 2);
+    }
 
+    loadMap() {
+        this.load.tilemapTiledJSON('map3', 'assets/levels/lvl3.json');
+
+    }
+
+    onStart(){
+        //const jumpButton = this.add.text(100, 100, 'Jump up to next level', {font: '64px Arial', fill: '#ffffff'})
+        //.setInteractive()
+       // .on('pointerdown', () => this.scene.start('level2') );
+
+       const map = this.make.tilemap({key: 'map3'});                                //load map
+       const tileset = map.addTilesetImage('chessTiles', 'tiles');   //load tileset for map
+       const platforms = map.createLayer('platforms', tileset, 0, 0);        //create platforms layer
+       const icePlatforms = map.createLayer('icePlatforms', tileset, 0, 0);        //create platforms layer
+       platforms.setCollisionByExclusion(-1, true);                                //set collision for platforms layer
+       icePlatforms.setCollisionByExclusion(-1, true);                                //set collision for platforms layer
+       this.physics.add.collider(this.player, platforms);
+       this.physics.add.collider(this.player, icePlatforms);
+
+       this.nextLevel = 'level4';
+       this.lastLevel = 'level2';
+
+
+    }
+
+}
+
+class Level4 extends Level {
+    constructor(){
+        super('level4', "Level 4", 3);
+    }
+
+    loadMap() {
+        this.load.tilemapTiledJSON('map4', 'assets/levels/lvl4.json');
+
+    }
+
+    onStart(){
+        //const jumpButton = this.add.text(100, 100, 'Jump up to next level', {font: '64px Arial', fill: '#ffffff'})
+        //.setInteractive()
+       // .on('pointerdown', () => this.scene.start('level2') );
+
+       const map = this.make.tilemap({key: 'map4'});                                //load map
+       const tileset = map.addTilesetImage('chessTiles', 'tiles');   //load tileset for map
+       const platforms = map.createLayer('platforms', tileset, 0, 0);        //create platforms layer
+       platforms.setCollisionByExclusion(-1, true);                                //set collision for platforms layer
+       const icePlatforms = map.createLayer('icePlatforms', tileset, 0, 0);        //create platforms layer
+       icePlatforms.setCollisionByExclusion(-1, true);                                //set collision for platforms layer
+       this.physics.add.collider(this.player, platforms);
+       this.physics.add.collider(this.player, icePlatforms);
+       this.nextLevel = 'EndCutscene';      //should never reach this
+       this.lastLevel = 'level3';
+
+
+    }
+
+}
 
 class EndCutscene extends Phaser.Scene {
     constructor() {
@@ -298,12 +395,13 @@ let config = {
 
     scale: {
         mode: Phaser.Scale.FIT,
+        pixelArt: true,
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width: 1920,
-        height: 1280
+        height: 1024,
     },
     backgroundColor: 0x000000,
-    scene: [Menu, Level1, Level2, EndCutscene, Settings, Credits],
+    scene: [Menu, Level1, Level2, Level3, Level4, EndCutscene, Settings, Credits],
     physics: {
         default: 'arcade',
         arcade: {
